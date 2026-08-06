@@ -1,19 +1,22 @@
+export type UserRole = 'student' | 'recruiter' | 'admin' | 'super_admin';
+
 export interface User {
   id: string;
   email: string;
   firstName?: string | null;
   lastName?: string | null;
+  role?: UserRole;
 }
 
 export interface RegisterResponse {
   message: string;
-  user: Pick<User, 'id' | 'email' | 'firstName' | 'lastName'>;
+  user: Pick<User, 'id' | 'email' | 'firstName' | 'lastName' | 'role'>;
 }
 
 export interface LoginResponse {
   message: string;
   accessToken: string;
-  user: Pick<User, 'id' | 'email'>;
+  user: Pick<User, 'id' | 'email' | 'role'>;
 }
 
 export interface Profile {
@@ -76,6 +79,8 @@ export interface ResumeAnalysisResponse {
   weaknesses: string[];
   suggestions: string[];
   redFlags: string[];
+  summary?: string;
+  improvements?: string[];
 }
 
 export type CoverLetterStyle = 'professional' | 'friendly' | 'startup' | 'corporate';
@@ -160,4 +165,71 @@ export interface CreateCoverLetterDto {
   content: string;
   jobId?: string;
   style?: string;
+}
+
+/* ---------- Auto-Apply ---------- */
+
+export interface AutoApplyConfig {
+  enabled: boolean;
+  minSalary: string;
+  experienceYears: string;
+  workMode: 'remote' | 'hybrid' | 'onsite' | 'any';
+  requiredSkills: string[];
+  excludedCompanies: string[];
+  maxDailyApplications: number;
+  connectedPortals: {
+    name: string;
+    connected: boolean;
+    lastSynced?: string;
+  }[];
+}
+
+export interface AutoApplyLog {
+  id: string;
+  jobTitle: string;
+  company: string;
+  portal: string;
+  timestamp: string;
+  status: 'submitted' | 'matched' | 'skipped';
+  matchScore: number;
+}
+
+/* ---------- Email Sync ---------- */
+
+export type EmailCategory = 'interview' | 'rejection' | 'offer' | 'assessment' | 'general';
+
+export interface SyncedEmail {
+  id: string;
+  fromName: string;
+  fromEmail: string;
+  subject: string;
+  date: string;
+  snippet: string;
+  category: EmailCategory;
+  parsedCompany?: string;
+  parsedRole?: string;
+  parsedDate?: string;
+}
+
+/* ---------- Career Coach ---------- */
+
+export interface CareerCoachResponse {
+  missingSkills: { skill: string; demandLevel: 'High' | 'Medium' | 'Critical'; courseRecommendation: string }[];
+  recommendedCourses: { title: string; provider: string; url: string; duration: string }[];
+  salaryInsight: { min: string; max: string; median: string; currency: string };
+  careerMilestones: { step: number; title: string; timeline: string; focus: string }[];
+  resumeImprovements: string[];
+}
+
+/* ---------- Pricing Tiers ---------- */
+
+export interface PricingPlan {
+  id: string;
+  name: string;
+  price: string;
+  billingPeriod: 'month' | 'year';
+  description: string;
+  features: string[];
+  popular?: boolean;
+  ctaText: string;
 }

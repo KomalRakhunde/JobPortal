@@ -19,14 +19,23 @@ const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const create_application_dto_1 = require("./dto/create-application.dto");
 const update_application_dto_1 = require("./dto/update-application.dto");
 let ApplicationsController = class ApplicationsController {
+    applicationsService;
     constructor(applicationsService) {
         this.applicationsService = applicationsService;
     }
-    create(userId, dto) {
-        return this.applicationsService.create(userId, dto);
+    findAllRoot(req) {
+        const userId = req.user?.userId;
+        return this.applicationsService.findAll(userId);
     }
     findAll(userId) {
         return this.applicationsService.findAll(userId);
+    }
+    createRoot(req, dto) {
+        const userId = req.user?.userId || 'user-1';
+        return this.applicationsService.create(userId, dto);
+    }
+    create(userId, dto) {
+        return this.applicationsService.create(userId, dto);
     }
     update(id, dto) {
         return this.applicationsService.update(id, dto);
@@ -37,13 +46,12 @@ let ApplicationsController = class ApplicationsController {
 };
 exports.ApplicationsController = ApplicationsController;
 __decorate([
-    (0, common_1.Post)(':userId'),
-    __param(0, (0, common_1.Param)('userId')),
-    __param(1, (0, common_1.Body)()),
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, create_application_dto_1.CreateApplicationDto]),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
-], ApplicationsController.prototype, "create", null);
+], ApplicationsController.prototype, "findAllRoot", null);
 __decorate([
     (0, common_1.Get)(':userId'),
     __param(0, (0, common_1.Param)('userId')),
@@ -51,6 +59,22 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ApplicationsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Post)(),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_application_dto_1.CreateApplicationDto]),
+    __metadata("design:returntype", void 0)
+], ApplicationsController.prototype, "createRoot", null);
+__decorate([
+    (0, common_1.Post)(':userId'),
+    __param(0, (0, common_1.Param)('userId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, create_application_dto_1.CreateApplicationDto]),
+    __metadata("design:returntype", void 0)
+], ApplicationsController.prototype, "create", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id')),

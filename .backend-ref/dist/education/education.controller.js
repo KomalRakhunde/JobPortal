@@ -19,6 +19,7 @@ const create_education_dto_1 = require("./dto/create-education.dto");
 const update_education_dto_1 = require("./dto/update-education.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let EducationController = class EducationController {
+    educationService;
     constructor(educationService) {
         this.educationService = educationService;
     }

@@ -1,4 +1,21 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+function getApiUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl) {
+    if (
+      typeof window !== 'undefined' &&
+      envUrl.includes('localhost') &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+    ) {
+      return window.location.origin;
+    }
+    return envUrl;
+  }
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return 'http://localhost:3000';
+}
 
 export class ApiError extends Error {
   status: number;
@@ -48,7 +65,15 @@ export async function apiRequest<T>(
     if (token) finalHeaders.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const baseUrl = getApiUrl();
+  const requestUrl =
+    path.startsWith('http://') || path.startsWith('https://')
+      ? path
+      : path.startsWith('/api/')
+      ? path
+      : `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+
+  const res = await fetch(requestUrl, {
     method,
     headers: finalHeaders,
     body:

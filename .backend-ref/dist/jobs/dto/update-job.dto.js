@@ -12,6 +12,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateJobDto = void 0;
 const class_validator_1 = require("class-validator");
 class UpdateJobDto {
+    title;
+    company;
+    location;
+    description;
+    salary;
+    applyUrl;
 }
 exports.UpdateJobDto = UpdateJobDto;
 __decorate([

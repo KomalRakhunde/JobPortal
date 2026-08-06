@@ -24,6 +24,9 @@ import { PaymentsModule } from './payments/payments.module';
 import { EducationModule } from './education/education.module';
 import { ExperienceModule } from './experience/experience.module';
 import { CertificationModule } from './certification/certification.module';
+import { ResumeParserModule } from './resume-parser/resume-parser.module';
+import { StorageModule } from './storage/storage.module';
+import { SearchModule } from './search/search.module';
 @Module({
   imports: [
   PrismaModule,
@@ -48,6 +51,9 @@ import { CertificationModule } from './certification/certification.module';
   EducationModule,
   ExperienceModule,
   CertificationModule,
+  ResumeParserModule,
+  StorageModule,
+  SearchModule,
 ],
   controllers: [AppController],
   providers: [AppService],

@@ -19,6 +19,7 @@ const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const create_job_dto_1 = require("./dto/create-job.dto");
 const update_job_dto_1 = require("./dto/update-job.dto");
 let JobsController = class JobsController {
+    jobsService;
     constructor(jobsService) {
         this.jobsService = jobsService;
     }

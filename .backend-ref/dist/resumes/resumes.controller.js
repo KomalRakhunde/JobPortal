@@ -19,6 +19,7 @@ const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const create_resume_dto_1 = require("./dto/create-resume.dto");
 const update_resume_dto_1 = require("./dto/update-resume.dto");
 let ResumesController = class ResumesController {
+    resumesService;
     constructor(resumesService) {
         this.resumesService = resumesService;
     }

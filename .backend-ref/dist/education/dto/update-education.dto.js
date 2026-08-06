@@ -12,6 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateEducationDto = void 0;
 const class_validator_1 = require("class-validator");
 class UpdateEducationDto {
+    degree;
+    field;
+    institute;
+    startYear;
+    endYear;
 }
 exports.UpdateEducationDto = UpdateEducationDto;
 __decorate([

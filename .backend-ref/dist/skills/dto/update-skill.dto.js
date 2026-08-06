@@ -12,6 +12,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateSkillDto = void 0;
 const class_validator_1 = require("class-validator");
 class UpdateSkillDto {
+    name;
+    level;
 }
 exports.UpdateSkillDto = UpdateSkillDto;
 __decorate([

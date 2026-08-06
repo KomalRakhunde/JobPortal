@@ -12,6 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateResumeDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateResumeDto {
+    title;
+    fileUrl;
+    atsScore;
 }
 exports.CreateResumeDto = CreateResumeDto;
 __decorate([

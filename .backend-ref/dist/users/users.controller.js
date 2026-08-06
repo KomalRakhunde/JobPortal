@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const users_service_1 = require("./users.service");
 let UsersController = class UsersController {
+    usersService;
     constructor(usersService) {
         this.usersService = usersService;
     }

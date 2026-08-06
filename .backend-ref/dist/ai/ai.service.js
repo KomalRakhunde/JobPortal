@@ -13,47 +13,107 @@ exports.AiService = void 0;
 const common_1 = require("@nestjs/common");
 const openrouter_service_1 = require("./openrouter.service");
 let AiService = class AiService {
+    openRouter;
     constructor(openRouter) {
         this.openRouter = openRouter;
     }
-    async atsScore(resume) {
+    async atsScore(resumeText, jobDescription) {
         return this.openRouter.generate(`
-Give an ATS score (0-100) for this resume.
-Return only JSON.
+You are an ATS Resume Analyzer.
+
+Return ONLY valid JSON in this exact format:
+
+{
+  "score": 0,
+  "breakdown": {
+    "keywordMatch": 0,
+    "formatting": 0,
+    "completeness": 0
+  },
+  "matchedKeywords": [],
+  "missingKeywords": []
+}
 
 Resume:
-${resume}
+${resumeText}
+
+Job Description:
+${jobDescription ?? 'Not Provided'}
 `);
     }
-    async resumeAnalysis(resume) {
+    async resumeAnalysis(resumeText) {
         return this.openRouter.generate(`
 Analyze this resume.
 
-Return:
-1. ATS Score
-2. Strengths
-3. Weaknesses
-4. Missing Skills
-5. Suggestions
+Return ONLY valid JSON in this exact format:
+
+{
+  "overallScore": 0,
+  "strengths": [],
+  "weaknesses": [],
+  "suggestions": [],
+  "redFlags": []
+}
 
 Resume:
-${resume}
+${resumeText}
 `);
     }
-    async coverLetter(resume, jobDescription) {
+    async coverLetter(resumeText, jobDescription) {
         return this.openRouter.generate(`
 Write a professional cover letter.
 
 Resume:
-${resume}
+${resumeText}
 
 Job Description:
 ${jobDescription}
 `);
     }
-    async interviewQuestions(jobRole) {
+    async interviewQuestions(jobTitle) {
         return this.openRouter.generate(`
-Generate 15 technical interview questions with answers for ${jobRole}.
+Generate interview questions.
+
+Return ONLY valid JSON:
+
+{
+  "technical": [],
+  "hr": [],
+  "coding": [],
+  "behavioral": []
+}
+
+Job Role:
+${jobTitle}
+`);
+    }
+    async evaluateRecruiterCandidate(resumeText, jobDescription, requirements) {
+        return this.openRouter.generate(`
+You are an expert AI Talent Acquisition Specialist and ATS Evaluator.
+Analyze the following resume against the job description and requirements.
+
+Return ONLY valid JSON with no markdown formatting, using this exact schema:
+
+{
+  "name": "Extracted Candidate Name or 'Unknown Candidate'",
+  "email": "Extracted Email or 'unknown@example.com'",
+  "phone": "Extracted Phone or ''",
+  "skills": ["Skill 1", "Skill 2"],
+  "experienceSummary": "Brief overview of key past experience",
+  "overallScore": 85,
+  "summary": "A concise 1-paragraph summary highlighting candidate's fit for this role, key qualifications, and suitability.",
+  "strengths": ["Strength 1", "Strength 2"],
+  "gaps": ["Gap or missing requirement 1"]
+}
+
+Job Description:
+${jobDescription}
+
+Job Requirements:
+${requirements ?? 'Not specified'}
+
+Resume Content:
+${resumeText}
 `);
     }
 };

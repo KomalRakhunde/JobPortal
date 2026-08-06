@@ -19,6 +19,7 @@ const create_certification_dto_1 = require("./dto/create-certification.dto");
 const update_certification_dto_1 = require("./dto/update-certification.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let CertificationController = class CertificationController {
+    certificationService;
     constructor(certificationService) {
         this.certificationService = certificationService;
     }

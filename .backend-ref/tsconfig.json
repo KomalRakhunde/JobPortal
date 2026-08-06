@@ -6,15 +6,16 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2021",
+    "target": "ESNext",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strict": false,
-    "moduleResolution": "node",
+    
     "esModuleInterop": true,
+    "types": ["node", "multer"],
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"],

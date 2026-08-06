@@ -12,6 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateExperienceDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateExperienceDto {
+    company;
+    role;
+    description;
+    startDate;
+    endDate;
 }
 exports.CreateExperienceDto = CreateExperienceDto;
 __decorate([

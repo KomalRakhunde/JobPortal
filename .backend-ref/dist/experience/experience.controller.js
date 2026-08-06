@@ -19,6 +19,7 @@ const create_experience_dto_1 = require("./dto/create-experience.dto");
 const update_experience_dto_1 = require("./dto/update-experience.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let ExperienceController = class ExperienceController {
+    experienceService;
     constructor(experienceService) {
         this.experienceService = experienceService;
     }

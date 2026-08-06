@@ -12,6 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateCertificationDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateCertificationDto {
+    name;
+    issuer;
+    issueDate;
 }
 exports.CreateCertificationDto = CreateCertificationDto;
 __decorate([

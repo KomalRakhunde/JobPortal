@@ -19,6 +19,7 @@ const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const create_skill_dto_1 = require("./dto/create-skill.dto");
 const update_skill_dto_1 = require("./dto/update-skill.dto");
 let SkillsController = class SkillsController {
+    skillsService;
     constructor(skillsService) {
         this.skillsService = skillsService;
     }

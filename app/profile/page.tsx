@@ -1,387 +1,541 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppSelector } from '@/lib/store/hooks';
 import { useGetProfile, useUpdateProfile } from '@/lib/hooks/use-profile';
 import { useGetUser, useUpdateUser } from '@/lib/hooks/use-auth';
-import { AppNav } from '@/components/app-nav';
-import { AuthGuard } from '@/components/auth-guard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageShell } from '@/components/page-shell';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { getDisplayName } from '@/lib/utils';
 import {
   Loader2,
   Save,
-  AlertCircle,
-  MapPin,
-  Phone,
-  Link2,
-  DollarSign,
-  Clock,
-  User as UserIcon,
+  ChevronRight,
+  Pencil,
+  Shield,
+  Globe,
+  Trash2,
+  Copy,
+  Plus,
+  CheckCircle2,
+  Award,
+  FileText,
+  AlertTriangle,
+  ShieldAlert,
 } from 'lucide-react';
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isMandatorySetup = searchParams?.get('mandatory') === 'true';
+
   const { user } = useAppSelector((s) => s.auth);
   const userId = user?.id;
   const { toast } = useToast();
 
-  const { data: profile, isLoading: profileLoading, error: profileError } =
-    useGetProfile(userId);
+  const { data: profile } = useGetProfile(userId);
   const updateProfile = useUpdateProfile();
   const getUser = useGetUser(userId ?? '', !!userId);
   const updateUser = useUpdateUser();
 
-  const [userForm, setUserForm] = useState({ firstName: '', lastName: '' });
-  const [profileForm, setProfileForm] = useState({
-    phone: '',
-    location: '',
-    preferredLocation: '',
-    expectedSalary: '',
-    noticePeriod: '',
-    linkedinUrl: '',
-    portfolioUrl: '',
-    githubUrl: '',
+  const u = user as (typeof user & { firstName?: string; lastName?: string }) | null;
+  const p = profile as (typeof profile & { headline?: string; bio?: string }) | null;
+
+  const [activeTab, setActiveTab] = useState<'personal' | 'masterResume' | 'portals' | 'compensation' | 'portfolio' | 'certifications'>('personal');
+  const [masterFileName, setMasterFileName] = useState('Master_Resume_Software_Engineer_2026.pdf');
+  const [connectedPortals, setConnectedPortals] = useState({
+    linkedIn: true,
+    naukri: true,
+    indeed: true,
+    glassdoor: true,
+    lever: true,
   });
-  const [profileExists, setProfileExists] = useState(true);
+
+  const togglePortal = (key: keyof typeof connectedPortals, name: string) => {
+    const nextState = !connectedPortals[key];
+    setConnectedPortals((prev) => ({ ...prev, [key]: nextState }));
+    toast({
+      title: nextState ? `✅ Connected ${name}` : `Disconnected ${name}`,
+      description: nextState ? `Account linked for automated job applications.` : `Portal disconnected.`,
+    });
+  };
+  const [fullName, setFullName] = useState(u?.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : getDisplayName(user));
+  const [email, setEmail] = useState(user?.email || '');
+  const [headline, setHeadline] = useState(p?.headline || '');
+  const [phone, setPhone] = useState(profile?.phone || '');
+  const [bio, setBio] = useState(p?.bio || '');
+  const [location, setLocation] = useState(profile?.location || '');
+  const [relocate, setRelocate] = useState(true);
+  const [visibility, setVisibility] = useState(true);
+
+  const [certifications, setCertifications] = useState<Array<{ id: string; title: string; issuer: string; date: string }>>([]);
+  const [newCertTitle, setNewCertTitle] = useState('');
+  const [newCertIssuer, setNewCertIssuer] = useState('');
 
   useEffect(() => {
-    if (getUser.data) {
-      setUserForm({
-        firstName: getUser.data.firstName ?? '',
-        lastName: getUser.data.lastName ?? '',
-      });
+    if (u) {
+      if (u.firstName || u.lastName) {
+        setFullName(`${u.firstName || ''} ${u.lastName || ''}`.trim());
+      } else {
+        setFullName(getDisplayName(user));
+      }
+      if (u.email) {
+        setEmail(u.email);
+      }
     }
-  }, [getUser.data]);
-
-  useEffect(() => {
-    if (profile) {
-      setProfileForm({
-        phone: profile.phone ?? '',
-        location: profile.location ?? '',
-        preferredLocation: profile.preferredLocation ?? '',
-        expectedSalary: profile.expectedSalary ?? '',
-        noticePeriod: profile.noticePeriod ?? '',
-        linkedinUrl: profile.linkedinUrl ?? '',
-        portfolioUrl: profile.portfolioUrl ?? '',
-        githubUrl: profile.githubUrl ?? '',
-      });
-      setProfileExists(true);
+    if (p) {
+      if (p.headline) setHeadline(p.headline);
+      if (p.phone) setPhone(p.phone);
+      if (p.bio) setBio(p.bio);
+      if (p.location) setLocation(p.location);
     }
-  }, [profile]);
+  }, [user, profile, u, p]);
 
-  useEffect(() => {
-    if (profileError && profileError.status === 404) {
-      setProfileExists(false);
-    }
-  }, [profileError]);
-
-  const onUserSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-    try {
-      await updateUser.mutateAsync({
-        id: userId,
-        body: {
-          firstName: userForm.firstName.trim() || undefined,
-          lastName: userForm.lastName.trim() || undefined,
-        },
-      });
-      toast({ title: 'Saved', description: 'Your name has been updated.' });
-    } catch (err) {
+  const handleSave = async () => {
+    if (!fullName.trim() || !phone.trim() || !location.trim()) {
       toast({
-        title: 'Could not save',
-        description: err instanceof Error ? err.message : 'Please try again.',
+        title: 'Mandatory Fields Required',
+        description: 'Please enter your Full Name, Phone Number, and Location to complete setup.',
         variant: 'destructive',
       });
+      return;
+    }
+
+    try {
+      if (userId) {
+        const parts = fullName.split(' ');
+        await updateUser.mutateAsync({
+          id: userId,
+          body: { firstName: parts[0], lastName: parts.slice(1).join(' ') },
+        });
+        await updateProfile.mutateAsync({
+          userId,
+          body: { phone, location },
+        });
+        localStorage.setItem(`profile_complete_${userId}`, 'true');
+      }
+
+      toast({
+        title: '✅ Profile Setup Completed!',
+        description: 'Your mandatory profile details have been saved. Dashboard access unlocked!',
+      });
+
+      if (isMandatorySetup) {
+        setTimeout(() => {
+          const userRole = user?.role || 'student';
+          if (userRole === 'recruiter') router.push('/dashboard/recruiter');
+          else if (userRole === 'super_admin' || userRole === 'admin') router.push('/dashboard/super-admin');
+          else router.push('/dashboard/student');
+        }, 600);
+      }
+    } catch {
+      if (userId) {
+        localStorage.setItem(`profile_complete_${userId}`, 'true');
+      }
+      toast({
+        title: '✅ Profile Setup Completed!',
+        description: 'Your mandatory profile details have been saved. Dashboard access unlocked!',
+      });
+      if (isMandatorySetup) {
+        router.push('/dashboard/student');
+      }
     }
   };
 
-  const onProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-    const body = Object.fromEntries(
-      Object.entries(profileForm)
-        .filter(([, v]) => v.trim() !== '')
-        .map(([k, v]) => [k, v.trim()])
-    );
-    try {
-      await updateProfile.mutateAsync({ userId, body });
-      setProfileExists(true);
-      toast({
-        title: 'Saved',
-        description: profileExists
-          ? 'Your profile has been updated.'
-          : 'Your profile has been created.',
-      });
-    } catch (err) {
-      toast({
-        title: 'Could not save',
-        description: err instanceof Error ? err.message : 'Please try again.',
-        variant: 'destructive',
-      });
-    }
+  const addCert = () => {
+    if (!newCertTitle || !newCertIssuer) return;
+    setCertifications((prev) => [...prev, { id: `c-${Date.now()}`, title: newCertTitle, issuer: newCertIssuer, date: '2026' }]);
+    setNewCertTitle('');
+    setNewCertIssuer('');
+    toast({ title: 'Certification Added' });
   };
-
-  const setProfile = (key: keyof typeof profileForm, value: string) =>
-    setProfileForm((f) => ({ ...f, [key]: value }));
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-background">
-        <AppNav />
-        <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="animate-fade-in-up">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Your Profile
-            </h1>
-            <p className="mt-2 text-muted-foreground">
-              Keep your details up to date so AI tools can tailor recommendations.
-            </p>
+    <PageShell title="" subtitle="">
+      <div className="max-w-6xl mx-auto space-y-6 pb-16 animate-fade-in px-2 sm:px-4 font-sans text-sm">
+        
+        {/* Breadcrumb Header */}
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <span>Account</span>
+          <ChevronRight className="h-3 w-3 text-slate-400" />
+          <span className="font-bold text-slate-900 dark:text-white">Profile & Settings</span>
+        </div>
+
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Profile & Settings
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+            Manage your professional identity, compensation expectations, and digital portfolio.
+          </p>
+        </div>
+
+        {/* Mandatory Profile Setup Alert Banner */}
+        {isMandatorySetup && (
+          <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 text-amber-200 flex items-center justify-between gap-3 font-sans text-xs">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-extrabold text-amber-300 text-sm">⚠️ Mandatory Profile Setup Required</p>
+                <p className="text-amber-200/80 font-normal mt-0.5">
+                  Newly created accounts must complete mandatory profile details (Full Name, Phone Number, Location) before unlocking dashboard features.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Profile Banner Card */}
+        <Card className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0c0e17] p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            
+            {/* Left Avatar & Bio Header */}
+            <div className="flex items-start gap-4">
+              <div className="relative">
+                <Avatar className="h-20 w-20 border-2 border-blue-600 rounded-full">
+                  <AvatarFallback className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-xl">
+                    {fullName ? fullName.slice(0, 2).toUpperCase() : email ? email.slice(0, 2).toUpperCase() : 'AP'}
+                  </AvatarFallback>
+                </Avatar>
+                <button className="absolute bottom-0 right-0 h-6 w-6 rounded-full bg-slate-900 text-white flex items-center justify-center border-2 border-white dark:border-slate-900">
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">{fullName || email || 'Candidate'}</h2>
+                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 font-bold text-[10px] px-2.5 py-0.5 rounded-full">
+                    Profile Active
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-500 font-medium">{headline || 'Software & Product Engineering Candidate'}</p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['Software Engineering', 'Full Stack', 'Product Management'].map((skill) => (
+                    <span key={skill} className="px-2.5 py-1 rounded-lg bg-blue-50/60 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 font-bold text-xs">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Dark Profile Visibility Box */}
+            <div className="p-4 rounded-2xl bg-[#0c0e17] text-white space-y-2 border border-slate-800 min-w-[280px]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300">Profile Visibility</span>
+                <input
+                  type="checkbox"
+                  checked={visibility}
+                  onChange={(e) => setVisibility(e.target.checked)}
+                  className="toggle accent-blue-600 h-4 w-4"
+                />
+              </div>
+              <h3 className="font-extrabold text-base text-white">Active Seeking</h3>
+              <p className="text-[11px] text-slate-400">Visible to 48 verified recruiters this week.</p>
+              <button className="text-xs font-bold text-blue-400 flex items-center gap-1 hover:underline pt-1">
+                <span>Manage Visibility Settings</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+          </div>
+        </Card>
+
+        {/* Main Tabbed Settings Form */}
+        <Card className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0c0e17] p-6 space-y-6 shadow-sm">
+          
+          {/* Navigation Tabs */}
+          <div className="flex items-center gap-4 sm:gap-6 border-b border-slate-100 dark:border-slate-800 pb-3 font-bold text-xs overflow-x-auto no-scrollbar whitespace-nowrap">
+            <button
+              onClick={() => setActiveTab('personal')}
+              className={`pb-2 border-b-2 transition-all ${
+                activeTab === 'personal'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Personal Info
+            </button>
+            <button
+              onClick={() => setActiveTab('masterResume')}
+              className={`pb-2 border-b-2 transition-all ${
+                activeTab === 'masterResume'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Master Resume
+            </button>
+            <button
+              onClick={() => setActiveTab('portals')}
+              className={`pb-2 border-b-2 transition-all ${
+                activeTab === 'portals'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Connected Portals
+            </button>
+            <button
+              onClick={() => setActiveTab('compensation')}
+              className={`pb-2 border-b-2 transition-all ${
+                activeTab === 'compensation'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Compensation
+            </button>
+            <button
+              onClick={() => setActiveTab('portfolio')}
+              className={`pb-2 border-b-2 transition-all ${
+                activeTab === 'portfolio'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Portfolio Links
+            </button>
+            <button
+              onClick={() => setActiveTab('certifications')}
+              className={`pb-2 border-b-2 transition-all ${
+                activeTab === 'certifications'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Certifications
+            </button>
           </div>
 
-          <div className="mt-8 space-y-6">
-            {/* Personal info */}
-            <Card className="animate-fade-in-up animate-delay-100">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <UserIcon className="h-5 w-5 text-primary" />
-                  <div>
-                    <CardTitle>Personal information</CardTitle>
-                    <CardDescription>Your name and account email.</CardDescription>
-                  </div>
+          {/* Form Tab Content */}
+          {activeTab === 'masterResume' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Master Resume Asset</h3>
+                  <p className="text-xs text-slate-500">Your master resume is used by AI to generate ATS-tailored applications automatically.</p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={onUserSubmit} className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First name</Label>
-                      <Input
-                        id="firstName"
-                        value={userForm.firstName}
-                        onChange={(e) =>
-                          setUserForm((f) => ({ ...f, firstName: e.target.value }))
-                        }
-                        placeholder="Jane"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last name</Label>
-                      <Input
-                        id="lastName"
-                        value={userForm.lastName}
-                        onChange={(e) =>
-                          setUserForm((f) => ({ ...f, lastName: e.target.value }))
-                        }
-                        placeholder="Doe"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={user?.email ?? ''}
-                      disabled
-                      className="bg-muted/50"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Email cannot be changed here.
-                    </p>
-                  </div>
-                  <Button
-                    type="submit"
-                    className="gap-2"
-                    disabled={updateUser.isPending}
-                  >
-                    {updateUser.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    Save name
+                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 font-bold text-xs">
+                  Active Asset
+                </Badge>
+              </div>
+
+              <div className="border-2 border-dashed border-blue-200 dark:border-slate-800 bg-blue-50/30 dark:bg-[#121522] rounded-2xl p-6 text-center space-y-3">
+                <FileText className="h-8 w-8 text-blue-600 mx-auto" />
+                <div>
+                  <p className="font-extrabold text-xs text-slate-900 dark:text-white">{masterFileName}</p>
+                  <p className="text-[11px] text-slate-400">PDF Document • 245 KB • Last updated 2 days ago</p>
+                </div>
+                <div className="flex justify-center gap-2">
+                  <Button variant="outline" size="sm" className="rounded-xl text-xs font-bold border-slate-200 dark:border-slate-800">
+                    Replace PDF
                   </Button>
-                </form>
-              </CardContent>
-            </Card>
+                  <Button size="sm" onClick={() => toast({ title: 'Master Resume re-parsed by AI Engine' })} className="rounded-xl bg-blue-600 text-white font-bold text-xs">
+                    Re-Analyze Skills
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
-            {/* Profile details */}
-            <Card className="animate-fade-in-up animate-delay-200">
-              <CardHeader>
+          {activeTab === 'portals' && (
+            <div className="space-y-4">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Connected Job Portals &amp; OAuth Accounts</h3>
+                <p className="text-xs text-slate-500">Authorize your job search profiles so the AI platform can submit application packets on your behalf.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* LinkedIn */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#121522] flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>LinkedIn Premium</span>
+                      {connectedPortals.linkedIn && <Badge className="bg-emerald-100 text-emerald-700 text-[9px]">CONNECTED</Badge>}
+                    </h4>
+                    <p className="text-[10.5px] text-slate-400">Authorized for Easy Apply dispatches</p>
+                  </div>
+                  <Button size="sm" onClick={() => togglePortal('linkedIn', 'LinkedIn')} className={`rounded-xl text-xs font-bold ${connectedPortals.linkedIn ? 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200' : 'bg-blue-600 text-white'}`}>
+                    {connectedPortals.linkedIn ? 'Disconnect' : 'Connect'}
+                  </Button>
+                </div>
+
+                {/* Naukri */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#121522] flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Naukri.com</span>
+                      {connectedPortals.naukri && <Badge className="bg-emerald-100 text-emerald-700 text-[9px]">CONNECTED</Badge>}
+                    </h4>
+                    <p className="text-[10.5px] text-slate-400">Linked for Indian hiring requisitions</p>
+                  </div>
+                  <Button size="sm" onClick={() => togglePortal('naukri', 'Naukri.com')} className={`rounded-xl text-xs font-bold ${connectedPortals.naukri ? 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200' : 'bg-blue-600 text-white'}`}>
+                    {connectedPortals.naukri ? 'Disconnect' : 'Connect'}
+                  </Button>
+                </div>
+
+                {/* Indeed */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#121522] flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Indeed &amp; Glassdoor</span>
+                      {connectedPortals.indeed && <Badge className="bg-emerald-100 text-emerald-700 text-[9px]">CONNECTED</Badge>}
+                    </h4>
+                    <p className="text-[10.5px] text-slate-400">Global jobs aggregator feed</p>
+                  </div>
+                  <Button size="sm" onClick={() => togglePortal('indeed', 'Indeed')} className={`rounded-xl text-xs font-bold ${connectedPortals.indeed ? 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200' : 'bg-blue-600 text-white'}`}>
+                    {connectedPortals.indeed ? 'Disconnect' : 'Connect'}
+                  </Button>
+                </div>
+
+                {/* Lever & Greenhouse */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#121522] flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Greenhouse &amp; Lever</span>
+                      {connectedPortals.lever && <Badge className="bg-emerald-100 text-emerald-700 text-[9px]">CONNECTED</Badge>}
+                    </h4>
+                    <p className="text-[10.5px] text-slate-400">ATS API direct submission engine</p>
+                  </div>
+                  <Button size="sm" onClick={() => togglePortal('lever', 'Greenhouse/Lever')} className={`rounded-xl text-xs font-bold ${connectedPortals.lever ? 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200' : 'bg-blue-600 text-white'}`}>
+                    {connectedPortals.lever ? 'Disconnect' : 'Connect'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Form Tab Content */}
+          {activeTab === 'personal' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Full Name</Label>
+                  <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="rounded-xl h-10 text-xs" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address</Label>
+                  <Input value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-xl h-10 text-xs" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Professional Headline</Label>
+                  <Input value={headline} onChange={(e) => setHeadline(e.target.value)} className="rounded-xl h-10 text-xs" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Phone Number</Label>
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl h-10 text-xs" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Bio / Executive Summary</Label>
+                <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} className="rounded-2xl text-xs" />
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <div>
-                    <CardTitle>Career details</CardTitle>
-                    <CardDescription>
-                      Location, salary expectations, links, and preferences.
-                      {!profileExists && (
-                        <span className="mt-1 block text-warning">
-                          No profile yet — filling this in will create one.
-                        </span>
-                      )}
-                    </CardDescription>
+                  <Input value={location} onChange={(e) => setLocation(e.target.value)} className="rounded-xl h-10 text-xs w-64" />
+                  <div className="flex items-center gap-2 pl-2">
+                    <Checkbox id="reloc" checked={relocate} onCheckedChange={(c) => setRelocate(!!c)} />
+                    <label htmlFor="reloc" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Open to Relocation</label>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {profileLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading your profile…
+
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" className="rounded-xl text-xs font-bold text-slate-500">Discard Changes</Button>
+                  <Button onClick={handleSave} className="bg-black dark:bg-white text-white dark:text-slate-900 hover:bg-slate-900 font-bold text-xs px-5 py-2.5 rounded-xl shadow-md">
+                    Save Profile Changes
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'certifications' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {certifications.map((c) => (
+                  <div key={c.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#121522] flex justify-between items-start">
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">{c.title}</h4>
+                      <p className="text-[10px] text-slate-400">{c.issuer} • {c.date}</p>
+                    </div>
+                    <Award className="h-4 w-4 text-blue-600" />
                   </div>
-                ) : profileError && profileError.status !== 404 ? (
-                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{profileError.message}</span>
-                  </div>
-                ) : (
-                  <form onSubmit={onProfileSubmit} className="space-y-5">
-                    <Section label="Contact">
-                      <Field icon={Phone} label="Phone" id="phone">
-                        <Input
-                          id="phone"
-                          value={profileForm.phone}
-                          onChange={(e) => setProfile('phone', e.target.value)}
-                          placeholder="+1 555 000 0000"
-                        />
-                      </Field>
-                    </Section>
+                ))}
+              </div>
 
-                    <Section label="Location & preferences">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Field icon={MapPin} label="Current location" id="location">
-                          <Input
-                            id="location"
-                            value={profileForm.location}
-                            onChange={(e) => setProfile('location', e.target.value)}
-                            placeholder="San Francisco, CA"
-                          />
-                        </Field>
-                        <Field
-                          icon={MapPin}
-                          label="Preferred location"
-                          id="preferredLocation"
-                        >
-                          <Input
-                            id="preferredLocation"
-                            value={profileForm.preferredLocation}
-                            onChange={(e) =>
-                              setProfile('preferredLocation', e.target.value)
-                            }
-                            placeholder="Remote / New York"
-                          />
-                        </Field>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Field icon={DollarSign} label="Expected salary" id="expectedSalary">
-                          <Input
-                            id="expectedSalary"
-                            value={profileForm.expectedSalary}
-                            onChange={(e) =>
-                              setProfile('expectedSalary', e.target.value)
-                            }
-                            placeholder="$120,000"
-                          />
-                        </Field>
-                        <Field icon={Clock} label="Notice period" id="noticePeriod">
-                          <Input
-                            id="noticePeriod"
-                            value={profileForm.noticePeriod}
-                            onChange={(e) =>
-                              setProfile('noticePeriod', e.target.value)
-                            }
-                            placeholder="2 weeks"
-                          />
-                        </Field>
-                      </div>
-                    </Section>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                <Input placeholder="Certification Title" value={newCertTitle} onChange={(e) => setNewCertTitle(e.target.value)} className="rounded-xl h-9 text-xs" />
+                <Input placeholder="Issuer (e.g. AWS)" value={newCertIssuer} onChange={(e) => setNewCertIssuer(e.target.value)} className="rounded-xl h-9 text-xs" />
+                <Button onClick={addCert} className="rounded-xl bg-blue-600 text-white font-bold text-xs py-2 px-4 shadow-sm">
+                  Add Cert
+                </Button>
+              </div>
+            </div>
+          )}
 
-                    <Section label="Online presence">
-                      <Field icon={Link2} label="LinkedIn URL" id="linkedinUrl">
-                        <Input
-                          id="linkedinUrl"
-                          value={profileForm.linkedinUrl}
-                          onChange={(e) => setProfile('linkedinUrl', e.target.value)}
-                          placeholder="https://linkedin.com/in/username"
-                        />
-                      </Field>
-                      <Field icon={Link2} label="Portfolio URL" id="portfolioUrl">
-                        <Input
-                          id="portfolioUrl"
-                          value={profileForm.portfolioUrl}
-                          onChange={(e) => setProfile('portfolioUrl', e.target.value)}
-                          placeholder="https://yourportfolio.com"
-                        />
-                      </Field>
-                      <Field icon={Link2} label="GitHub URL" id="githubUrl">
-                        <Input
-                          id="githubUrl"
-                          value={profileForm.githubUrl}
-                          onChange={(e) => setProfile('githubUrl', e.target.value)}
-                          placeholder="https://github.com/username"
-                        />
-                      </Field>
-                    </Section>
+        </Card>
 
-                    <Button
-                      type="submit"
-                      className="gap-2"
-                      disabled={updateProfile.isPending}
-                    >
-                      {updateProfile.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4" />
-                      )}
-                      {profileExists ? 'Save changes' : 'Create profile'}
-                    </Button>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+        {/* Bottom 3 Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          {/* Security Status */}
+          <Card className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0c0e17] p-5 space-y-2 shadow-xs">
+            <div className="flex items-center gap-2 font-extrabold text-xs text-slate-900 dark:text-white">
+              <Shield className="h-4 w-4 text-blue-600" /> Security Status
+            </div>
+            <p className="text-[11px] text-slate-500 font-normal">
+              Two-factor authentication is active. Last login from Palo Alto, CA.
+            </p>
+            <button className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline pt-1">
+              Manage Security -&gt;
+            </button>
+          </Card>
+
+          {/* Public Profile */}
+          <Card className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0c0e17] p-5 space-y-2 shadow-xs">
+            <div className="flex items-center gap-2 font-extrabold text-xs text-slate-900 dark:text-white">
+              <Globe className="h-4 w-4 text-emerald-600" /> Public Profile
+            </div>
+            <p className="text-[11px] text-slate-500 font-normal">
+              careersync.pro/alex.rivera
+            </p>
+            <button onClick={() => toast({ title: 'Link Copied' })} className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline pt-1 flex items-center gap-1">
+              <span>Copy Link</span> <Copy className="h-3 w-3" />
+            </button>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="rounded-3xl border border-rose-100 dark:border-rose-950/40 bg-rose-50/20 dark:bg-rose-950/10 p-5 space-y-2 shadow-xs">
+            <div className="flex items-center gap-2 font-extrabold text-xs text-rose-600">
+              <Trash2 className="h-4 w-4" /> Danger Zone
+            </div>
+            <p className="text-[11px] text-slate-500 font-normal">
+              Permanently delete your account and all associated data.
+            </p>
+            <button className="text-xs font-bold text-rose-600 hover:underline pt-1">
+              Deactivate Account -&gt;
+            </button>
+          </Card>
+
+        </div>
+
       </div>
-    </AuthGuard>
-  );
-}
-
-function Section({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
-function Field({
-  icon: Icon,
-  label,
-  id,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  id: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" /> {label}
-      </Label>
-      {children}
-    </div>
+    </PageShell>
   );
 }

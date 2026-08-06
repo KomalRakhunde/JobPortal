@@ -18,6 +18,7 @@ const profiles_service_1 = require("./profiles.service");
 const update_profile_dto_1 = require("./dto/update-profile.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let ProfilesController = class ProfilesController {
+    profilesService;
     constructor(profilesService) {
         this.profilesService = profilesService;
     }
